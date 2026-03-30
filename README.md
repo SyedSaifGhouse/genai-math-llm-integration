@@ -19,128 +19,75 @@ The system combines:
 
 ## Program
 ```python
-import math
-from typing import Dict, Any
-import google.generativeai as genai
+import os
+import openai
+from dotenv import load_dotenv, find_dotenv
+_ = load_dotenv(find_dotenv()) # read local .env file
+openai.api_key = os.environ['OPENAI_API_KEY']
+
 import json
-
-# Configuration
-GOOGLE_API_KEY = "your-api-key-here"  
-genai.configure(api_key=GOOGLE_API_KEY)
-
-def calculate_cylinder_volume(radius: float, height: float) -> float:
+import math
+# Function to calculate volume of a cylinder
+def calculate_cylinder_volume(radius, height):
+    if radius <= 0 or height <= 0:
+        return "Enter a valid value"
     
-    return math.pi * (radius ** 2) * height
-
-def create_gemini_prompt(user_input: str) -> str:
+    volume = math.pi * (radius ** 2) * height
     
-    return f"""
-    Extract the radius and height values from the following query about a cylinder.
-    Return only a JSON object with 'radius' and 'height' as keys and their values in meters.
-    
-    Query: {user_input}
-    
-    Expected format:
-    {{"radius": number, "height": number}}
-    """
-
-def parse_gemini_response(response_text: str) -> Dict[str, float]:
-    """
-    Parse Gemini's response to extract radius and height values.
-    
-    Args:
-        response_text (str): Response from Gemini model
-    
-    Returns:
-        Dict[str, float]: Extracted parameters
-    """
-    try:
-        # Find the JSON object in the response
-        start_idx = response_text.find('{')
-        end_idx = response_text.rfind('}') + 1
-        json_str = response_text[start_idx:end_idx]
-        
-        # Parse the JSON object
-        params = json.loads(json_str)
-        
-        # Validate required keys
-        if 'radius' not in params or 'height' not in params:
-            raise ValueError("Missing required parameters in response")
-            
-        return {
-            'radius': float(params['radius']),
-            'height': float(params['height'])
-        }
-    except Exception as e:
-        raise ValueError(f"Failed to parse Gemini response: {str(e)}")
-
-def process_user_query(user_input: str) -> Dict[str, Any]:
-    
-    try:
-        # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-pro')
-        
-        # Create and send prompt to Gemini
-        prompt = create_gemini_prompt(user_input)
-        response = model.generate_content(prompt)
-        
-        # Parse parameters from response
-        parameters = parse_gemini_response(response.text)
-        
-        # Calculate the volume
-        volume = calculate_cylinder_volume(parameters['radius'], parameters['height'])
-        
-        return {
-            "success": True,
-            "volume": volume,
-            "units": "cubic meters",
-            "input_parameters": parameters
-        }
-    
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
-
-def format_volume(volume: float) -> str:
-   
-    if volume >= 1:
-        return f"{volume:.2f} cubic meters"
-    else:
-        return f"{volume * 1000:.2f} cubic centimeters"
-
-def main():
-    
-    print("=== Cylinder Volume Calculator with Gemini Integration ===\n")
-    print("Enter 'quit' to exit\n")
-    
-    while True:
-        user_input = input("Enter your query (e.g., 'Calculate volume of cylinder with radius 3m and height 5m'): ")
-        
-        if user_input.lower() == 'quit':
-            break
-            
-        result = process_user_query(user_input)
-        
-        if result["success"]:
-            volume_str = format_volume(result["volume"])
-            print(f"\nResults:")
-            print(f"- Volume: {volume_str}")
-            print(f"- Dimensions used:")
-            print(f"  * Radius: {result['input_parameters']['radius']} meters")
-            print(f"  * Height: {result['input_parameters']['height']} meters")
-        else:
-            print(f"\nError: {result['error']}")
-        
-        print("\n" + "-" * 50 + "\n")
-
-if __name__ == "__main__":
-    main()
+    return json.dumps({
+        "radius": radius,
+        "height": height,
+        "volume": round(volume, 2),
+        "unit": "cubic units"
+    })
+# define a function
+functions = [
+    {
+        "name": "calculate_cylinder_volume",
+        "description": "Calculate the volume of a cylinder using radius and height",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "radius": {
+                    "type": "number",
+                    "description": "Radius of the cylinder"
+                },
+                "height": {
+                    "type": "number",
+                    "description": "Height of the cylinder"
+                }
+            },
+            "required": ["radius", "height"],
+        },
+    }
+]
+messages = [
+    {
+        "role": "user",
+        "content": "Find the volume of a cylinder where radius is 7 and height is 12"
+    }
+]
+import openai
+# Call the ChatCompletion endpoint
+response = openai.ChatCompletion.create(
+    # OpenAI Updates: As of June 2024, we are now using the GPT-3.5-Turbo model
+    model="gpt-3.5-turbo",
+    messages=messages,
+    functions=functions
+)
+print(response)
+response_message = response["choices"][0]["message"]
+response_message
+response_message["content"]
+response_message["function_call"]
+json.loads(response_message["function_call"]["arguments"])
+args = json.loads(response_message["function_call"]["arguments"])
+calculate_cylinder_volume(122,133)
 ```
 
 ## Output
-![image](https://github.com/user-attachments/assets/fbf945d4-8788-492e-8358-ffa0d23bc92f)
+
+<img width="877" height="478" alt="image" src="https://github.com/user-attachments/assets/7c52822e-0907-423f-9ab2-8312436bed8b" />
 
 
 ## Result
